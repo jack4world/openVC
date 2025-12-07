@@ -247,6 +247,13 @@ class SubtitleStyleInterface(QWidget):
             decimals=1,
         )
 
+        self.mainBackColorCard = ColorSettingCard(
+            QColor(0, 0, 0, 0),  # 默认透明
+            FIF.PALETTE,  # type: ignore
+            self.tr("主字幕背景颜色"),
+            self.tr("设置主字幕的背景颜色（高光效果）"),
+        )
+
         # 副字幕样式设置
         self.subFontCard = ComboBoxSettingCard(
             FIF.FONT,  # type: ignore
@@ -295,6 +302,13 @@ class SubtitleStyleInterface(QWidget):
             decimals=1,
         )
 
+        self.subBackColorCard = ColorSettingCard(
+            QColor(0, 0, 0, 0),  # 默认透明
+            FIF.PALETTE,  # type: ignore
+            self.tr("副字幕背景颜色"),
+            self.tr("设置副字幕的背景颜色（高光效果）"),
+        )
+
         # 预览设置
         self.previewTextCard = ComboBoxSettingCard(
             FIF.MESSAGE,  # type: ignore
@@ -331,6 +345,7 @@ class SubtitleStyleInterface(QWidget):
         self.mainGroup.addSettingCard(self.mainColorCard)
         self.mainGroup.addSettingCard(self.mainOutlineColorCard)
         self.mainGroup.addSettingCard(self.mainOutlineSizeCard)
+        self.mainGroup.addSettingCard(self.mainBackColorCard)
 
         self.subGroup.addSettingCard(self.subFontCard)
         self.subGroup.addSettingCard(self.subSizeCard)
@@ -338,6 +353,7 @@ class SubtitleStyleInterface(QWidget):
         self.subGroup.addSettingCard(self.subColorCard)
         self.subGroup.addSettingCard(self.subOutlineColorCard)
         self.subGroup.addSettingCard(self.subOutlineSizeCard)
+        self.subGroup.addSettingCard(self.subBackColorCard)
 
         self.previewGroup.addSettingCard(self.previewTextCard)
         self.previewGroup.addSettingCard(self.orientationCard)
@@ -424,6 +440,7 @@ class SubtitleStyleInterface(QWidget):
         self.mainColorCard.colorChanged.connect(self.onSettingChanged)
         self.mainOutlineColorCard.colorChanged.connect(self.onSettingChanged)
         self.mainOutlineSizeCard.spinBox.valueChanged.connect(self.onSettingChanged)
+        self.mainBackColorCard.colorChanged.connect(self.onSettingChanged)
 
         # 副字幕样式
         self.subFontCard.currentTextChanged.connect(self.onSettingChanged)
@@ -432,6 +449,7 @@ class SubtitleStyleInterface(QWidget):
         self.subColorCard.colorChanged.connect(self.onSettingChanged)
         self.subOutlineColorCard.colorChanged.connect(self.onSettingChanged)
         self.subOutlineSizeCard.spinBox.valueChanged.connect(self.onSettingChanged)
+        self.subBackColorCard.colorChanged.connect(self.onSettingChanged)
 
         # 预览设置
         self.previewTextCard.currentTextChanged.connect(self.onSettingChanged)
@@ -510,12 +528,23 @@ class SubtitleStyleInterface(QWidget):
         # 获取颜色值并转换为 ASS 格式 (AABBGGRR)
         main_color_hex = self.mainColorCard.colorPicker.color.name()
         main_outline_hex = self.mainOutlineColorCard.colorPicker.color.name()
+        main_back_color = self.mainBackColorCard.colorPicker.color
         main_color = (
             f"&H00{main_color_hex[5:7]}{main_color_hex[3:5]}{main_color_hex[1:3]}"
         )
         main_outline_color = (
             f"&H00{main_outline_hex[5:7]}{main_outline_hex[3:5]}{main_outline_hex[1:3]}"
         )
+        # 背景颜色：&HAABBGGRR，需要包含 Alpha 通道
+        # ASS 格式中 Alpha 是反转的：00=不透明，FF=透明（与 Qt 相反）
+        if main_back_color.alpha() == 0:
+            main_back_color_str = "&H00000000"  # 完全透明
+            main_border_style = 1  # 标准轮廓样式（不显示背景框）
+        else:
+            # ASS Alpha = 255 - Qt Alpha (因为 ASS 中 00=不透明，FF=透明)
+            ass_alpha = 255 - main_back_color.alpha()
+            main_back_color_str = f"&H{ass_alpha:02X}{main_back_color.blue():02X}{main_back_color.green():02X}{main_back_color.red():02X}"
+            main_border_style = 3  # 不透明框样式（显示背景框）
         main_spacing = self.mainSpacingCard.spinBox.value()
         main_outline_size = self.mainOutlineSizeCard.spinBox.value()
 
@@ -526,16 +555,28 @@ class SubtitleStyleInterface(QWidget):
         # 获取颜色值并转换为 ASS 格式 (AABBGGRR)
         sub_color_hex = self.subColorCard.colorPicker.color.name()
         sub_outline_hex = self.subOutlineColorCard.colorPicker.color.name()
+        sub_back_color = self.subBackColorCard.colorPicker.color
         sub_color = f"&H00{sub_color_hex[5:7]}{sub_color_hex[3:5]}{sub_color_hex[1:3]}"
         sub_outline_color = (
             f"&H00{sub_outline_hex[5:7]}{sub_outline_hex[3:5]}{sub_outline_hex[1:3]}"
         )
+        # 背景颜色：&HAABBGGRR，需要包含 Alpha 通道
+        # ASS 格式中 Alpha 是反转的：00=不透明，FF=透明（与 Qt 相反）
+        if sub_back_color.alpha() == 0:
+            sub_back_color_str = "&H00000000"  # 完全透明
+            sub_border_style = 1  # 标准轮廓样式（不显示背景框）
+        else:
+            # ASS Alpha = 255 - Qt Alpha (因为 ASS 中 00=不透明，FF=透明)
+            ass_alpha = 255 - sub_back_color.alpha()
+            sub_back_color_str = f"&H{ass_alpha:02X}{sub_back_color.blue():02X}{sub_back_color.green():02X}{sub_back_color.red():02X}"
+            sub_border_style = 3  # 不透明框样式（显示背景框）
         sub_spacing = self.subSpacingCard.spinBox.value()
         sub_outline_size = self.subOutlineSizeCard.spinBox.value()
 
         # 生成样式字符串
-        main_style = f"Style: Default,{main_font},{main_size},{main_color},&H000000FF,{main_outline_color},&H00000000,-1,0,0,0,100,100,{main_spacing},0,1,{main_outline_size},0,2,10,10,{vertical_spacing},1,\\q1"
-        sub_style = f"Style: Secondary,{sub_font},{sub_size},{sub_color},&H000000FF,{sub_outline_color},&H00000000,-1,0,0,0,100,100,{sub_spacing},0,1,{sub_outline_size},0,2,10,10,{vertical_spacing},1,\\q1"
+        # BorderStyle: 1=标准轮廓, 3=不透明框（显示背景）
+        main_style = f"Style: Default,{main_font},{main_size},{main_color},&H000000FF,{main_outline_color},{main_back_color_str},-1,0,0,0,100,100,{main_spacing},0,{main_border_style},{main_outline_size},0,2,10,10,{vertical_spacing},1,\\q1"
+        sub_style = f"Style: Secondary,{sub_font},{sub_size},{sub_color},&H000000FF,{sub_outline_color},{sub_back_color_str},-1,0,0,0,100,100,{sub_spacing},0,{sub_border_style},{sub_outline_size},0,2,10,10,{vertical_spacing},1,\\q1"
 
         return f"[V4+ Styles]\n{style_format}\n{main_style}\n{sub_style}"
 
@@ -654,6 +695,37 @@ class SubtitleStyleInterface(QWidget):
                     red = int(color_hex[6:8], 16)
                     self.mainOutlineColorCard.setColor(QColor(red, green, blue, alpha))
 
+                # 解析背景颜色 (BackColour, 索引 6)
+                if len(parts) > 6:
+                    back_color = parts[6].strip()
+                    if back_color.startswith("&H"):
+                        color_hex = back_color[2:].upper()
+                        # ASS 格式支持 6 位 (&HBBGGRR) 或 8 位 (&HAABBGGRR)
+                        if len(color_hex) >= 8:
+                            # 8 位格式：包含 Alpha 通道
+                            ass_alpha = int(color_hex[0:2], 16)
+                            blue = int(color_hex[2:4], 16)
+                            green = int(color_hex[4:6], 16)
+                            red = int(color_hex[6:8], 16)
+                            # ASS Alpha 反转：ASS 中 00=不透明，FF=透明，Qt 中 0=透明，255=不透明
+                            qt_alpha = 255 - ass_alpha
+                        elif len(color_hex) >= 6:
+                            # 6 位格式：RGB 格式，默认不透明
+                            blue = int(color_hex[0:2], 16)
+                            green = int(color_hex[2:4], 16)
+                            red = int(color_hex[4:6], 16)
+                            qt_alpha = 255  # 默认完全不透明
+                        else:
+                            # 格式不正确，设置为透明
+                            red, green, blue, qt_alpha = 0, 0, 0, 0
+                        self.mainBackColorCard.setColor(QColor(red, green, blue, qt_alpha))
+                    else:
+                        # 如果没有背景颜色或格式不正确，设置为透明
+                        self.mainBackColorCard.setColor(QColor(0, 0, 0, 0))
+                else:
+                    # 如果字段不存在，设置为透明
+                    self.mainBackColorCard.setColor(QColor(0, 0, 0, 0))
+
                 self.mainSpacingCard.spinBox.setValue(float(parts[13]))
                 self.mainOutlineSizeCard.spinBox.setValue(float(parts[16]))
             elif line.startswith("Style: Secondary"):
@@ -679,6 +751,37 @@ class SubtitleStyleInterface(QWidget):
                     green = int(color_hex[4:6], 16)
                     red = int(color_hex[6:8], 16)
                     self.subOutlineColorCard.setColor(QColor(red, green, blue, alpha))
+
+                # 解析背景颜色 (BackColour, 索引 6)
+                if len(parts) > 6:
+                    back_color = parts[6].strip()
+                    if back_color.startswith("&H"):
+                        color_hex = back_color[2:].upper()
+                        # ASS 格式支持 6 位 (&HBBGGRR) 或 8 位 (&HAABBGGRR)
+                        if len(color_hex) >= 8:
+                            # 8 位格式：包含 Alpha 通道
+                            ass_alpha = int(color_hex[0:2], 16)
+                            blue = int(color_hex[2:4], 16)
+                            green = int(color_hex[4:6], 16)
+                            red = int(color_hex[6:8], 16)
+                            # ASS Alpha 反转：ASS 中 00=不透明，FF=透明，Qt 中 0=透明，255=不透明
+                            qt_alpha = 255 - ass_alpha
+                        elif len(color_hex) >= 6:
+                            # 6 位格式：RGB 格式，默认不透明
+                            blue = int(color_hex[0:2], 16)
+                            green = int(color_hex[2:4], 16)
+                            red = int(color_hex[4:6], 16)
+                            qt_alpha = 255  # 默认完全不透明
+                        else:
+                            # 格式不正确，设置为透明
+                            red, green, blue, qt_alpha = 0, 0, 0, 0
+                        self.subBackColorCard.setColor(QColor(red, green, blue, qt_alpha))
+                    else:
+                        # 如果没有背景颜色或格式不正确，设置为透明
+                        self.subBackColorCard.setColor(QColor(0, 0, 0, 0))
+                else:
+                    # 如果字段不存在，设置为透明
+                    self.subBackColorCard.setColor(QColor(0, 0, 0, 0))
 
                 self.subSpacingCard.spinBox.setValue(float(parts[13]))
                 self.subOutlineSizeCard.spinBox.setValue(float(parts[16]))
