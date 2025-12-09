@@ -455,6 +455,44 @@ def get_video_info(
         return None
 
 
+def split_video(
+    video_path: str, start_ms: int, end_ms: int, output_path: str
+) -> None:
+    """切割视频片段
+
+    Args:
+        video_path: 输入视频路径
+        start_ms: 开始时间（毫秒）
+        end_ms: 结束时间（毫秒）
+        output_path: 输出视频路径
+    """
+    start_sec = start_ms / 1000.0
+    duration_sec = (end_ms - start_ms) / 1000.0
+
+    cmd = [
+        "ffmpeg",
+        "-ss",
+        str(start_sec),
+        "-i",
+        video_path,
+        "-t",
+        str(duration_sec),
+        "-c",
+        "copy",
+        "-y",
+        output_path,
+    ]
+
+    subprocess.run(
+        cmd,
+        check=True,
+        capture_output=True,
+        creationflags=(
+            getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+        ),
+    )
+
+
 def _extract_thumbnail(video_path: str, seek_time: float, thumbnail_path: str) -> bool:
     """提取视频缩略图
 

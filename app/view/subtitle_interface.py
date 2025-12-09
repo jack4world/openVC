@@ -45,6 +45,7 @@ from app.core.constant import (
     INFOBAR_DURATION_SUCCESS,
     INFOBAR_DURATION_WARNING,
 )
+from app.core.llm.slice_analyzer import analyze_slices
 from app.core.entities import (
     OutputSubtitleFormatEnum,
     SubtitleLayoutEnum,
@@ -62,6 +63,7 @@ class SubtitleTableModel(QAbstractTableModel):
     def __init__(self, data: Union[str, Dict[str, Any]] = ""):
         super().__init__()
         self._data: Dict[str, Any] = {}
+        self.slice_ranges: List[Tuple[int, int]] = []
         if isinstance(data, str):
             self.load_data(data)
         else:
@@ -106,6 +108,13 @@ class SubtitleTableModel(QAbstractTableModel):
         elif role == Qt.TextAlignmentRole:  # type: ignore
             if col in [0, 1]:
                 return Qt.AlignCenter  # type: ignore
+        elif role == Qt.BackgroundRole:  # type: ignore
+            for i, (start, end) in enumerate(self.slice_ranges):
+                if start <= row <= end:
+                    if i % 2 == 0:
+                        return QColor(200, 220, 255, 80)
+                    else:
+                        return QColor(255, 220, 200, 80)
         return None
 
     def setData(self, index: QModelIndex, value: Any, role: int = Qt.EditRole) -> bool:  # type: ignore
@@ -202,6 +211,7 @@ class SubtitleInterface(QWidget):
         self.task: Optional[SubtitleTask] = None
         self.subtitle_path: Optional[str] = None
         self.custom_prompt_text: str = cfg.custom_prompt_text.value
+        self.slice_ranges: List[Tuple[int, int]] = []  # [(start, end), ...]
         self.setAttribute(Qt.WA_DeleteOnClose)  # type: ignore
         self._init_ui()
         self._setup_signals()
@@ -310,6 +320,20 @@ class SubtitleInterface(QWidget):
         self.target_language_button.setMenu(self.target_language_menu)
 
         self.command_bar.addWidget(self.target_language_button)
+
+        self.command_bar.addSeparator()
+
+        # 添加视频切片按钮
+        self.command_bar.addAction(
+            Action(FIF.CUT, self.tr("智能切片"), triggered=self.analyze_video_slices)
+        )
+
+        # 添加导出切片按钮
+        self.export_slices_button = Action(
+            FIF.SAVE_AS, self.tr("导出切片"), triggered=self.export_video_slices
+        )
+        self.export_slices_button.setEnabled(False)
+        self.command_bar.addAction(self.export_slices_button)
 
         self.command_bar.addSeparator()
 
@@ -729,32 +753,39 @@ class SubtitleInterface(QWidget):
         """显示右键菜单"""
         menu = RoundMenu(parent=self)
 
-        # 获取选中的行
         indexes = self.subtitle_table.selectedIndexes()
         if not indexes:
             return
 
-        # 获取唯一的行号
         rows = sorted(set(index.row() for index in indexes))
         if not rows:
             return
 
-        # 添加菜单项
-        # retranslate_action = Action(FIF.SYNC, self.tr("重新翻译"))
-        merge_action = Action(FIF.LINK, self.tr("合并"))  # 添加快捷键提示
-        # menu.addAction(retranslate_action)
+        # 检查选中行是否在切片范围内
+        in_slice = any(
+            any(start <= row <= end for start, end in self.slice_ranges) for row in rows
+        )
+
+        if in_slice:
+            # 在切片内：显示移除选项
+            remove_action = Action(FIF.DELETE, self.tr("移除切片"))
+            menu.addAction(remove_action)
+            remove_action.triggered.connect(lambda: self.remove_slice_range(rows))
+        else:
+            # 不在切片内：显示添加选项
+            add_action = Action(FIF.ADD, self.tr("添加为切片"))
+            menu.addAction(add_action)
+            add_action.setEnabled(len(rows) > 1)
+            add_action.triggered.connect(lambda: self.add_slice_range(rows))
+
+        menu.addSeparator()
+
+        merge_action = Action(FIF.LINK, self.tr("合并"))
         menu.addAction(merge_action)
-        merge_action.setShortcut("Ctrl+M")  # 设置快捷键
-
-        # 设置动作状态
-        # retranslate_action.setEnabled(cfg.need_translate.value)
+        merge_action.setShortcut("Ctrl+M")
         merge_action.setEnabled(len(rows) > 1)
-
-        # 连接动作信号
-        # retranslate_action.triggered.connect(lambda: self.retranslate_selected_rows(rows))
         merge_action.triggered.connect(lambda: self.merge_selected_rows(rows))
 
-        # 显示菜单
         menu.exec(self.subtitle_table.viewport().mapToGlobal(pos))
 
     def merge_selected_rows(self, rows: List[int]) -> None:
@@ -819,6 +850,195 @@ class SubtitleInterface(QWidget):
             duration=INFOBAR_DURATION_SUCCESS,
             parent=self,
         )
+
+    def analyze_video_slices(self) -> None:
+        """使用LLM分析视频切片点"""
+        if not self.model._data:
+            InfoBar.warning(
+                self.tr("无数据"),
+                self.tr("请先加载字幕文件"),
+                duration=INFOBAR_DURATION_WARNING,
+                parent=self,
+            )
+            return
+
+        try:
+            from app.core.asr.asr_data import ASRDataSeg
+
+            segments = []
+            for key, seg in self.model._data.items():
+                segments.append(
+                    ASRDataSeg(
+                        seg["original_subtitle"],
+                        seg["start_time"],
+                        seg["end_time"],
+                        seg.get("translated_subtitle", ""),
+                    )
+                )
+
+            asr_data = ASRData(segments)
+            model = cfg.deepseek_model.value
+            self.slice_ranges = analyze_slices(asr_data, model)
+            self.model.slice_ranges = self.slice_ranges
+            self.model.layoutChanged.emit()
+
+            # 启用导出按钮
+            if self.slice_ranges:
+                self.export_slices_button.setEnabled(True)
+                InfoBar.success(
+                    self.tr("分析完成"),
+                    self.tr(f"检测到 {len(self.slice_ranges)} 个重要段落，可以导出"),
+                    duration=INFOBAR_DURATION_SUCCESS,
+                    parent=self,
+                )
+            else:
+                self.export_slices_button.setEnabled(False)
+                InfoBar.warning(
+                    self.tr("未检测到"),
+                    self.tr("未检测到相关内容段落"),
+                    duration=INFOBAR_DURATION_WARNING,
+                    parent=self,
+                )
+        except Exception as e:
+            InfoBar.error(
+                self.tr("分析失败"),
+                str(e),
+                duration=INFOBAR_DURATION_ERROR,
+                parent=self,
+            )
+
+    def add_slice_range(self, rows: List[int]) -> None:
+        """添加切片范围"""
+        if len(rows) < 2:
+            return
+        start, end = min(rows), max(rows)
+        self.slice_ranges.append((start, end))
+        self.slice_ranges.sort()
+        self.model.slice_ranges = self.slice_ranges
+        self.model.layoutChanged.emit()
+        self.export_slices_button.setEnabled(bool(self.slice_ranges))
+        InfoBar.success(
+            self.tr("已添加"),
+            self.tr(f"已添加切片段落 ({start}-{end})"),
+            duration=INFOBAR_DURATION_SUCCESS,
+            parent=self,
+        )
+
+    def remove_slice_range(self, rows: List[int]) -> None:
+        """移除切片范围"""
+        to_remove = []
+        for row in rows:
+            for i, (start, end) in enumerate(self.slice_ranges):
+                if start <= row <= end and i not in to_remove:
+                    to_remove.append(i)
+        for i in sorted(to_remove, reverse=True):
+            self.slice_ranges.pop(i)
+        self.model.slice_ranges = self.slice_ranges
+        self.model.layoutChanged.emit()
+        self.export_slices_button.setEnabled(bool(self.slice_ranges))
+        InfoBar.success(
+            self.tr("已移除"),
+            self.tr(f"已移除 {len(to_remove)} 个切片段落"),
+            duration=INFOBAR_DURATION_SUCCESS,
+            parent=self,
+        )
+
+    def export_video_slices(self) -> None:
+        """导出视频切片和字幕"""
+        if not self.slice_ranges:
+            return
+
+        try:
+            from app.core.utils.video_utils import split_video
+
+            # 获取视频路径
+            video_path = None
+            if self.task and self.task.video_path:
+                video_path = self.task.video_path
+            elif self.subtitle_path:
+                # 从字幕路径推断视频路径
+                subtitle_dir = Path(self.subtitle_path).parent.parent
+                for ext in [".mp4", ".mkv", ".avi", ".mov", ".webm"]:
+                    video_file = list(subtitle_dir.glob(f"*{ext}"))
+                    if video_file:
+                        video_path = str(video_file[0])
+                        break
+
+            if not video_path or not Path(video_path).exists():
+                InfoBar.error(
+                    self.tr("导出失败"),
+                    self.tr("未找到视频文件"),
+                    duration=INFOBAR_DURATION_ERROR,
+                    parent=self,
+                )
+                return
+
+            # 在work-dir对应文件夹创建slices目录
+            video_dir = Path(video_path).parent
+            output_dir = video_dir / "slices"
+            output_dir.mkdir(exist_ok=True)
+
+            for i, (start_row, end_row) in enumerate(self.slice_ranges):
+                start_seg = self.model._data.get(str(start_row + 1))
+                end_seg = self.model._data.get(str(end_row + 1))
+                if start_seg and end_seg:
+                    # 导出视频
+                    video_output = str(output_dir / f"slice_{i+1}.mp4")
+                    split_video(
+                        video_path,
+                        start_seg["start_time"],
+                        end_seg["end_time"],
+                        video_output,
+                    )
+
+                    # 导出字幕（ASS格式）
+                    self._export_slice_subtitle(
+                        output_dir, i + 1, start_row, end_row, start_seg["start_time"]
+                    )
+
+            InfoBar.success(
+                self.tr("导出成功"),
+                self.tr(f"已导出 {len(self.slice_ranges)} 个视频切片和字幕"),
+                duration=INFOBAR_DURATION_SUCCESS,
+                parent=self,
+            )
+        except Exception as e:
+            InfoBar.error(
+                self.tr("导出失败"),
+                str(e),
+                duration=INFOBAR_DURATION_ERROR,
+                parent=self,
+            )
+
+    def _export_slice_subtitle(
+        self, output_dir: Path, slice_num: int, start_row: int, end_row: int, offset: int
+    ) -> None:
+        """导出切片字幕（ASS格式）"""
+        from app.core.asr.asr_data import ASRData, ASRDataSeg
+
+        # 构建ASRData
+        segments = []
+        for row in range(start_row, end_row + 1):
+            seg = self.model._data.get(str(row + 1))
+            if seg:
+                segments.append(
+                    ASRDataSeg(
+                        seg["original_subtitle"],
+                        seg["start_time"] - offset,
+                        seg["end_time"] - offset,
+                        seg["translated_subtitle"],
+                    )
+                )
+
+        asr_data = ASRData(segments)
+        layout = cfg.subtitle_layout.value
+        subtitle_style = get_subtitle_style(cfg.subtitle_style_name.value)
+
+        # 导出ASS
+        subtitle_output = str(output_dir / f"slice_{slice_num}.ass")
+        ass_content = asr_data.to_ass(subtitle_style, layout)
+        with open(subtitle_output, "w", encoding="utf-8") as f:
+            f.write(ass_content)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """处理键盘事件"""
