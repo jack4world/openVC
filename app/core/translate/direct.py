@@ -79,10 +79,19 @@ def translate_subtitle_with_llm(
                     if k.isdigit()
                 }
             except Exception as e:
+                err_str = str(e)
+                # Non-retryable: auth errors, invalid key, quota exceeded
+                is_permanent = any(x in err_str for x in (
+                    "401", "authentication", "invalid_request_error",
+                    "invalid api key", "quota", "billing",
+                ))
                 logger.warning(
                     f"Batch {batch_idx} translation failed "
                     f"(attempt {attempt + 1}/{max_attempts}): {e}"
                 )
+                if is_permanent:
+                    logger.error(f"Batch {batch_idx} permanent error, skipping retries")
+                    return {}
         logger.error(f"Batch {batch_idx} failed all {max_attempts} attempts, skipping")
         return {}
 
