@@ -240,8 +240,8 @@ class Pipeline:
             from app.core.video.reframe import reframe_video
             from app.core.utils.get_subtitle_style import get_subtitle_style
 
-            portrait_clean = str(output_dir / f"[vertical_clean]{stem}.mp4")
-            portrait_path  = str(output_dir / f"[vertical]{stem}.mp4")
+            portrait_clean = str(output_dir / f"{stem}_vertical_clean.mp4")
+            portrait_path  = str(output_dir / f"{stem}_vertical.mp4")
             try:
                 # Step 1: reframe the clean (no subtitle) source video
                 reframe_video(
@@ -258,7 +258,7 @@ class Pipeline:
                 # Uses the "portrait" style (large MarginV) so subtitles land
                 # in the blurred background area below the letterboxed video.
                 portrait_ass_style = get_subtitle_style(self.cfg.reframe_style)
-                portrait_ass = output_dir / f"[portrait]{stem}.ass"
+                portrait_ass = output_dir / f"{stem}_portrait.ass"
                 processed.save(str(portrait_ass), ass_style=portrait_ass_style, layout=layout)
 
                 # Step 3: burn the portrait ASS into the reframed video
