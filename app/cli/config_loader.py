@@ -19,7 +19,7 @@ class CLIConfig:
     # ASR
     transcribe_model: str = "bijian"
     transcribe_language: str = "en"
-    word_timestamps: bool = True
+    word_timestamps: bool = False
 
     # Processing
     need_split: bool = True
