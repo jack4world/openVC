@@ -103,6 +103,7 @@ class ProgressReporter:
         file_labels: List[Tuple[str, str, str]] = [
             ("subtitle", "📄 Subtitle (ASS)   ", ""),
             ("video", "🎬 Video            ", ""),
+            ("vertical_video", "📱 Portrait (9:16)  ", ""),
             ("metadata", "📋 Metadata         ", ""),
             ("raw_transcript", "📝 Raw transcript   ", ""),
         ]

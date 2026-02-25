@@ -207,6 +207,24 @@ def _build_parser():
         default=1.0,
         help="Extra seconds before/after each slice boundary (default: 1.0)",
     )
+    proc.add_argument(
+        "--reframe",
+        action="store_true",
+        help="Also produce a portrait (9:16) version of the output video (TikTok/Reels/Shorts)",
+    )
+    proc.add_argument(
+        "--reframe-mode",
+        default="blur-bg",
+        choices=["blur-bg", "crop-center", "split"],
+        dest="reframe_mode",
+        help="Reframe mode (default: blur-bg)",
+    )
+    proc.add_argument("--reframe-width",  type=int, default=1080, dest="reframe_width")
+    proc.add_argument("--reframe-height", type=int, default=1920, dest="reframe_height")
+    proc.add_argument(
+        "--reframe-blur", type=int, default=40, dest="reframe_blur",
+        help="Blur strength for blur-bg/split modes (default: 40)",
+    )
 
     # ── transcribe ───────────────────────────────────────────────────────────
     tr = subparsers.add_parser("transcribe", help="ASR only")

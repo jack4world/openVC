@@ -55,6 +55,13 @@ class CLIConfig:
     slice_context_secs: float = 1.0
     slice_dir: Optional[Path] = None
 
+    # Reframe (landscape → portrait) after video synthesis
+    reframe_after: bool = False
+    reframe_mode: str = "blur-bg"   # blur-bg | crop-center | split
+    reframe_width: int = 1080
+    reframe_height: int = 1920
+    reframe_blur: int = 40
+
     # Paths
     output_dir: Path = field(default_factory=lambda: Path("./output"))
     work_dir: Path = field(default_factory=lambda: Path("./work-dir"))
@@ -145,6 +152,18 @@ class CLIConfig:
             cfg.glossary_save_path = Path(args.glossary_save)  # type: ignore[union-attr]
         elif cfg.glossary_learn and cfg.glossary_save_path is None:
             cfg.glossary_save_path = OPENVC_GLOSSARY_FILE
+
+        # Reframe options
+        if hasattr(args, "reframe") and getattr(args, "reframe", False):
+            cfg.reframe_after = True
+        if getattr(args, "reframe_mode", None):
+            cfg.reframe_mode = args.reframe_mode
+        if getattr(args, "reframe_width", None) is not None:
+            cfg.reframe_width = args.reframe_width
+        if getattr(args, "reframe_height", None) is not None:
+            cfg.reframe_height = args.reframe_height
+        if getattr(args, "reframe_blur", None) is not None:
+            cfg.reframe_blur = args.reframe_blur
 
         # Slice-after-process options
         if hasattr(args, "slice") and getattr(args, "slice", False):

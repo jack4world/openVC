@@ -232,6 +232,28 @@ class Pipeline:
                 write_sidecar_json(meta_out, source_meta, processed)
                 result_files["metadata"] = str(meta_out.resolve())
 
+        # Optional: reframe captioned video to portrait (TikTok/Reels/Shorts)
+        if self.cfg.reframe_after and "video" in result_files:
+            self.reporter.stage(f"Reframing to portrait ({self.cfg.reframe_mode})")
+            from app.core.video.reframe import reframe_video
+            src_video = result_files["video"]
+            portrait_path = str(output_dir / f"[vertical]{stem}.mp4")
+            try:
+                reframe_video(
+                    input_path=src_video,
+                    output_path=portrait_path,
+                    mode=self.cfg.reframe_mode,
+                    width=self.cfg.reframe_width,
+                    height=self.cfg.reframe_height,
+                    blur_strength=self.cfg.reframe_blur,
+                    quality=self.cfg.video_quality,
+                    subtitle_file=None,  # subtitles already burned into src_video
+                )
+                result_files["vertical_video"] = portrait_path
+                self.reporter.substage(f"Portrait video → {portrait_path}")
+            except Exception as exc:
+                self.reporter.substage(f"Reframe failed: {exc}")
+
         # Optional: LLM-driven semantic slicing after full processing
         if self.cfg.slice_after and self._has_llm_key():
             slice_output_dir = self.cfg.slice_dir or (output_dir / "slices")
