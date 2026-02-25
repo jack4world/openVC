@@ -293,6 +293,45 @@ def _build_parser():
     slc.add_argument("--api-key", default=None)
     slc.add_argument("--no-subtitle-export", action="store_true", help="Skip exporting per-clip subtitles")
 
+    # ── reframe ───────────────────────────────────────────────────────────────
+    rf = subparsers.add_parser(
+        "reframe",
+        help="Convert landscape video to portrait (TikTok/Reels/Shorts) format",
+    )
+    rf.add_argument("video", type=Path, help="Input landscape video file")
+    rf.add_argument("--output", "-o", type=Path, default=None, help="Output path (default: <input>_vertical.mp4)")
+    rf.add_argument(
+        "--mode",
+        default="blur-bg",
+        choices=["blur-bg", "crop-center", "split"],
+        help=(
+            "Reframe mode: "
+            "blur-bg=original centred on blurred background (TikTok style, default), "
+            "crop-center=centre-crop to 9:16, "
+            "split=original on top / blurred zoom on bottom"
+        ),
+    )
+    rf.add_argument("--width",  type=int, default=1080, help="Output width  (default: 1080)")
+    rf.add_argument("--height", type=int, default=1920, help="Output height (default: 1920)")
+    rf.add_argument(
+        "--blur",
+        type=int,
+        default=40,
+        metavar="N",
+        help="Blur strength for blur-bg / split modes (default: 40)",
+    )
+    rf.add_argument(
+        "--quality",
+        default="medium",
+        choices=["ultra-high", "high", "medium", "low"],
+    )
+    rf.add_argument(
+        "--subtitle",
+        type=Path,
+        default=None,
+        help="Optional ASS/SRT file to burn into the reframed video",
+    )
+
     return parser
 
 
@@ -332,6 +371,63 @@ def _handle_config_command(args) -> int:
     return 1
 
 
+def _handle_reframe_command(args, json_output: bool = False) -> int:
+    """Run the reframe pipeline: landscape → portrait."""
+    from app.core.video.reframe import reframe_video
+
+    input_path = str(args.video.resolve())
+
+    if args.output:
+        output_path = str(args.output.resolve())
+    else:
+        stem = args.video.stem
+        output_path = str(args.video.parent / f"{stem}_vertical.mp4")
+
+    subtitle_file = str(args.subtitle.resolve()) if args.subtitle else None
+
+    if not json_output:
+        mode_desc = {
+            "blur-bg":     "blurred background (TikTok style)",
+            "crop-center": "centre-crop",
+            "split":       "split-screen (original top / zoom bottom)",
+        }.get(args.mode, args.mode)
+        print(f"\n  Reframing → {args.mode}  ({mode_desc})", file=sys.stderr)
+        print(f"  Input  : {input_path}", file=sys.stderr)
+        print(f"  Output : {output_path}", file=sys.stderr)
+        print(f"  Canvas : {args.width}×{args.height}", file=sys.stderr)
+        if subtitle_file:
+            print(f"  Subtitle: {subtitle_file}", file=sys.stderr)
+        print(file=sys.stderr)
+
+    try:
+        out = reframe_video(
+            input_path=input_path,
+            output_path=output_path,
+            mode=args.mode,
+            width=args.width,
+            height=args.height,
+            blur_strength=args.blur,
+            quality=args.quality,
+            subtitle_file=subtitle_file,
+        )
+    except Exception as exc:
+        if json_output:
+            import json as _json
+            print(_json.dumps({"error": str(exc), "exit_code": 1, "type": "error"}))
+        else:
+            print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    if json_output:
+        import json as _json
+        print(_json.dumps({"output": out, "mode": args.mode, "width": args.width, "height": args.height}))
+    else:
+        size_mb = Path(out).stat().st_size / (1024 * 1024)
+        print(f"  ✓ Done  →  {out}  ({size_mb:.1f} MB)", file=sys.stderr)
+
+    return 0
+
+
 def main() -> None:
     from app.cli.banner import print_banner
     from app.cli.exit_codes import (
@@ -369,6 +465,9 @@ def main() -> None:
 
     if args.command == "config":
         sys.exit(_handle_config_command(args))
+
+    if args.command == "reframe":
+        sys.exit(_handle_reframe_command(args, json_output=json_output))
 
     print_banner(json_output=json_output)
 
