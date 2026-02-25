@@ -395,6 +395,13 @@ class ASRData:
             "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
         )
 
+        # With top-alignment (Alignment=7/8/9), the first-listed event occupies the
+        # topmost position. With bottom-alignment (1/2/3, the default), the first-listed
+        # event is at the bottom and later events are pushed up. To keep "translated on top"
+        # correct for both orientations, reverse the event listing order for top-aligned styles.
+        import re as _re
+        _top_aligned = bool(_re.search(r",\s*[789]\s*,", style_str or ""))
+
         dialogue_template = "Dialogue: 0,{},{},{},,0,0,0,,{}\n"
         for seg in self.segments:
             start_time, end_time = seg.to_ass_ts()
@@ -408,24 +415,44 @@ class ASRData:
 
             if layout == SubtitleLayoutEnum.TRANSLATE_ON_TOP:
                 if has_translation:
-                    ass_content += dialogue_template.format(
-                        start_time, end_time, "Secondary", original
-                    )
-                    ass_content += dialogue_template.format(
-                        start_time, end_time, "Default", translated
-                    )
+                    if _top_aligned:
+                        # Top-aligned: Default (translated) first → stays at top
+                        ass_content += dialogue_template.format(
+                            start_time, end_time, "Default", translated
+                        )
+                        ass_content += dialogue_template.format(
+                            start_time, end_time, "Secondary", original
+                        )
+                    else:
+                        # Bottom-aligned: Secondary (original) first → stays at bottom,
+                        # Default (translated) pushed up = on top
+                        ass_content += dialogue_template.format(
+                            start_time, end_time, "Secondary", original
+                        )
+                        ass_content += dialogue_template.format(
+                            start_time, end_time, "Default", translated
+                        )
                 else:
                     ass_content += dialogue_template.format(
                         start_time, end_time, "Default", original
                     )
             elif layout == SubtitleLayoutEnum.ORIGINAL_ON_TOP:
                 if has_translation:
-                    ass_content += dialogue_template.format(
-                        start_time, end_time, "Secondary", translated
-                    )
-                    ass_content += dialogue_template.format(
-                        start_time, end_time, "Default", original
-                    )
+                    if _top_aligned:
+                        # Top-aligned: Default (original) first → stays at top
+                        ass_content += dialogue_template.format(
+                            start_time, end_time, "Default", original
+                        )
+                        ass_content += dialogue_template.format(
+                            start_time, end_time, "Secondary", translated
+                        )
+                    else:
+                        ass_content += dialogue_template.format(
+                            start_time, end_time, "Secondary", translated
+                        )
+                        ass_content += dialogue_template.format(
+                            start_time, end_time, "Default", original
+                        )
                 else:
                     ass_content += dialogue_template.format(
                         start_time, end_time, "Default", original

@@ -17,6 +17,7 @@ split        Dual-stack: full video on top half, zoomed/blurred on bottom half.
 from __future__ import annotations
 
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -71,19 +72,6 @@ def _split_filter(width: int, height: int, blur: int) -> tuple[str, str]:
     return f, "out"
 
 
-# ── subtitle filter suffix ─────────────────────────────────────────────────────
-
-def _subtitle_suffix(filter_str: str, out_label: str, subtitle_path: str) -> tuple[str, str]:
-    """Append ASS/SRT burning to an existing filter graph."""
-    safe = subtitle_path.replace("\\", "/").replace(":", "\\:")
-    ext = Path(subtitle_path).suffix.lower()
-    if ext == ".ass":
-        filter_str += f";[{out_label}]ass='{safe}'[subout]"
-    else:
-        filter_str += f";[{out_label}]subtitles='{safe}'[subout]"
-    return filter_str, "subout"
-
-
 # ── main entry point ───────────────────────────────────────────────────────────
 
 def reframe_video(
@@ -129,13 +117,20 @@ def reframe_video(
     else:
         raise ValueError(f"Unknown reframe mode '{mode}'. Choose: blur-bg, crop-center, split")
 
-    if subtitle_file:
-        filter_str, out_label = _subtitle_suffix(
-            filter_str, out_label, str(Path(subtitle_file).resolve())
-        )
-
     crf = _QUALITY_CRF.get(quality, 22)
     preset = _QUALITY_PRESET.get(quality, "medium")
+
+    logger.info(f"Reframing {input_path!r} → {output_path!r}  mode={mode}  {width}x{height}")
+    if progress_callback:
+        progress_callback(0, f"Reframing ({mode})…")
+
+    # Pass 1: reframe (to temp file if subtitle follows, otherwise direct to output)
+    reframe_target = output_path
+    tmp_path = None
+    if subtitle_file:
+        tmp_fd, tmp_path = tempfile.mkstemp(suffix=".mp4")
+        import os; os.close(tmp_fd)
+        reframe_target = tmp_path
 
     cmd = [
         "ffmpeg", "-y",
@@ -148,18 +143,41 @@ def reframe_video(
         "-preset", preset,
         "-c:a", "aac",
         "-movflags", "+faststart",
-        output_path,
+        reframe_target,
     ]
-
-    logger.info(f"Reframing {input_path!r} → {output_path!r}  mode={mode}  {width}x{height}")
-    if progress_callback:
-        progress_callback(0, f"Reframing ({mode})…")
 
     result = subprocess.run(cmd, capture_output=True)
     if result.returncode != 0:
+        if tmp_path:
+            Path(tmp_path).unlink(missing_ok=True)
         err = result.stderr.decode(errors="replace")
         logger.error(f"ffmpeg reframe failed:\n{err}")
         raise RuntimeError(f"ffmpeg reframe failed: {err[-500:]}")
+
+    # Pass 2: burn subtitle using -vf (not filter_complex) so libass respects alignment
+    if subtitle_file:
+        try:
+            safe = str(Path(subtitle_file).resolve()).replace("\\", "/").replace(":", "\\:")
+            ext = Path(subtitle_file).suffix.lower()
+            vf = f"ass='{safe}'" if ext == ".ass" else f"subtitles='{safe}'"
+            cmd2 = [
+                "ffmpeg", "-y",
+                "-i", tmp_path,
+                "-vf", vf,
+                "-c:v", "libx264",
+                "-crf", str(crf),
+                "-preset", preset,
+                "-c:a", "aac",
+                "-movflags", "+faststart",
+                output_path,
+            ]
+            result2 = subprocess.run(cmd2, capture_output=True)
+            if result2.returncode != 0:
+                err = result2.stderr.decode(errors="replace")
+                logger.error(f"ffmpeg subtitle burn failed:\n{err}")
+                raise RuntimeError(f"ffmpeg subtitle burn failed: {err[-500:]}")
+        finally:
+            Path(tmp_path).unlink(missing_ok=True)
 
     if progress_callback:
         progress_callback(100, "Reframe complete")

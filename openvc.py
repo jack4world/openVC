@@ -355,6 +355,17 @@ def _build_parser():
         default=None,
         help="Optional ASS/SRT file to burn into the reframed video",
     )
+    rf.add_argument(
+        "--style",
+        default="portrait",
+        help="Subtitle style preset to apply when --subtitle is given (default: portrait)",
+    )
+    rf.add_argument(
+        "--layout",
+        default="translate-on-top",
+        choices=["translate-on-top", "original-on-top", "only-original", "only-translate"],
+        help="Subtitle layout (default: translate-on-top)",
+    )
 
     return parser
 
@@ -416,11 +427,9 @@ def _handle_reframe_command(args, json_output: bool = False) -> int:
         from app.core.asr.asr_data import ASRData
         from app.core.entities import SubtitleLayoutEnum
         from app.core.utils.get_subtitle_style import get_subtitle_style
-        from app.cli.config_loader import load_persistent_config
 
-        cfg_data = load_persistent_config()
-        style_name = cfg_data.get("subtitle_style", "science-vlog")
-        layout_name = cfg_data.get("subtitle_layout", "translate-on-top")
+        style_name = getattr(args, "style", "portrait") or "portrait"
+        layout_name = getattr(args, "layout", "translate-on-top") or "translate-on-top"
 
         _layout_map = {
             "translate-on-top": SubtitleLayoutEnum.TRANSLATE_ON_TOP,
