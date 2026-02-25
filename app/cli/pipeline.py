@@ -307,6 +307,7 @@ class Pipeline:
                     str(slice_output_dir),
                     context_secs=self.cfg.slice_context_secs,
                     ass_style=ass_style,
+                    layout=layout,
                 )
                 result_files["clips"] = clip_paths
                 result_files["clip_subtitles"] = sub_paths
@@ -485,8 +486,10 @@ class Pipeline:
             self.reporter.substage("Exporting per-clip subtitles")
             from app.core.utils.get_subtitle_style import get_subtitle_style
             ass_style = get_subtitle_style(self.cfg.subtitle_style)
+            clip_layout = _LAYOUT_MAP.get(self.cfg.subtitle_layout, SubtitleLayoutEnum.TRANSLATE_ON_TOP)
             sub_paths = export_clip_subtitles(
-                asr_data, slice_ranges, str(output_dir), context_secs, ass_style
+                asr_data, slice_ranges, str(output_dir), context_secs, ass_style,
+                layout=clip_layout,
             )
 
         self.reporter.done(f"Slicing complete — {len(clip_paths)} clips saved to {output_dir}")

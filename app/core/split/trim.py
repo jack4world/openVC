@@ -56,6 +56,7 @@ def export_clip_subtitles(
     output_dir: str,
     context_secs: float = 0.5,
     ass_style: Optional[str] = None,
+    layout=None,
 ) -> List[str]:
     """Export subtitle files for each clip, with timestamps rebased to clip start.
 
@@ -84,7 +85,8 @@ def export_clip_subtitles(
 
         clip_data = ASRData(clip_segs)
         out_path = str(Path(output_dir) / f"clip_{i + 1:03d}.ass")
-        clip_data.save(out_path, ass_style=ass_style, layout=SubtitleLayoutEnum.TRANSLATE_ON_TOP)
+        effective_layout = layout if layout is not None else SubtitleLayoutEnum.TRANSLATE_ON_TOP
+        clip_data.save(out_path, ass_style=ass_style, layout=effective_layout)
         output_paths.append(out_path)
 
     return output_paths
