@@ -397,6 +397,7 @@ def _handle_config_command(args) -> int:
 
 def _handle_reframe_command(args, json_output: bool = False) -> int:
     """Run the reframe pipeline: landscape → portrait."""
+    import tempfile
     from app.core.video.reframe import reframe_video
 
     input_path = str(args.video.resolve())
@@ -407,7 +408,38 @@ def _handle_reframe_command(args, json_output: bool = False) -> int:
         stem = args.video.stem
         output_path = str(args.video.parent / f"{stem}_vertical.mp4")
 
-    subtitle_file = str(args.subtitle.resolve()) if args.subtitle else None
+    # If a subtitle file is given, restyle it with the configured style+layout
+    # (defaults: science-vlog + translate-on-top) before burning.
+    subtitle_file: str | None = None
+    _temp_ass: str | None = None
+    if args.subtitle:
+        from app.core.asr.asr_data import ASRData
+        from app.core.entities import SubtitleLayoutEnum
+        from app.core.utils.get_subtitle_style import get_subtitle_style
+        from app.cli.config_loader import load_persistent_config
+
+        cfg_data = load_persistent_config()
+        style_name = cfg_data.get("subtitle_style", "science-vlog")
+        layout_name = cfg_data.get("subtitle_layout", "translate-on-top")
+
+        _layout_map = {
+            "translate-on-top": SubtitleLayoutEnum.TRANSLATE_ON_TOP,
+            "original-on-top":  SubtitleLayoutEnum.ORIGINAL_ON_TOP,
+            "only-original":    SubtitleLayoutEnum.ONLY_ORIGINAL,
+            "only-translate":   SubtitleLayoutEnum.ONLY_TRANSLATE,
+        }
+        layout = _layout_map.get(layout_name, SubtitleLayoutEnum.TRANSLATE_ON_TOP)
+        ass_style = get_subtitle_style(style_name)
+
+        asr_data = ASRData.from_subtitle_file(str(args.subtitle.resolve()))
+        tmp = tempfile.NamedTemporaryFile(suffix=".ass", delete=False, prefix="openvc_reframe_")
+        tmp.close()
+        asr_data.save(tmp.name, ass_style=ass_style, layout=layout)
+        subtitle_file = tmp.name
+        _temp_ass = tmp.name
+
+        if not json_output:
+            print(f"  Style  : {style_name}  layout: {layout_name}", file=sys.stderr)
 
     if not json_output:
         mode_desc = {
@@ -419,8 +451,8 @@ def _handle_reframe_command(args, json_output: bool = False) -> int:
         print(f"  Input  : {input_path}", file=sys.stderr)
         print(f"  Output : {output_path}", file=sys.stderr)
         print(f"  Canvas : {args.width}×{args.height}", file=sys.stderr)
-        if subtitle_file:
-            print(f"  Subtitle: {subtitle_file}", file=sys.stderr)
+        if args.subtitle:
+            print(f"  Subtitle: {args.subtitle}", file=sys.stderr)
         print(file=sys.stderr)
 
     try:
@@ -441,6 +473,9 @@ def _handle_reframe_command(args, json_output: bool = False) -> int:
         else:
             print(f"Error: {exc}", file=sys.stderr)
         return 1
+    finally:
+        if _temp_ass:
+            Path(_temp_ass).unlink(missing_ok=True)
 
     if json_output:
         import json as _json
