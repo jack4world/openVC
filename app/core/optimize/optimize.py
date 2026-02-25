@@ -24,6 +24,17 @@ logger = setup_logger("subtitle_optimizer")
 MAX_STEPS = 3
 
 
+def _needs_optimization(text: str) -> bool:
+    t = text.strip()
+    has_ending_punct = bool(re.search(r'[。！？!?\.]\s*$', t))
+    has_repeats = bool(re.search(r'\b(\w+)\s+\1\b', t, re.IGNORECASE))
+    too_short = len(t) <= 3
+    cjk_count = sum(1 for c in t if '\u4e00' <= c <= '\u9fff')
+    latin_count = sum(1 for c in t if c.isalpha() and c.isascii())
+    suspicious_mix = 0 < cjk_count < 3 and latin_count > 10
+    return has_repeats or suspicious_mix or (not has_ending_punct and not too_short)
+
+
 class SubtitleOptimizer:
     """字幕优化器
 
@@ -402,6 +413,24 @@ class SubtitleOptimizer:
             )
             for i, seg in enumerate(original_segments, 1)
         ]
+
+    def optimize_subtitle_selective(self, asr_data: ASRData) -> ASRData:
+        needs_opt = [i for i, seg in enumerate(asr_data.segments)
+                     if _needs_optimization(seg.text)]
+        if not needs_opt:
+            logger.info("All segments passed cleanliness check, skipping LLM optimization")
+            return asr_data
+        logger.info(f"{len(needs_opt)}/{len(asr_data.segments)} segments need optimization")
+        dirty_data = ASRData([asr_data.segments[i] for i in needs_opt])
+        optimized_dirty = self.optimize_subtitle(dirty_data)
+        new_segments = list(asr_data.segments)
+        for i, opt_seg in zip(needs_opt, optimized_dirty.segments):
+            new_segments[i] = ASRDataSeg(
+                text=opt_seg.text,
+                start_time=asr_data.segments[i].start_time,
+                end_time=asr_data.segments[i].end_time,
+            )
+        return ASRData(new_segments)
 
     def stop(self) -> None:
         """停止优化器并清理资源"""
