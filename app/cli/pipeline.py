@@ -185,11 +185,18 @@ class Pipeline:
         processed = self._process_subtitles(asr_data)
 
         if self.cfg.sync_check and audio_path is not None:
-            from app.core.sync.drift_detector import detect_and_correct_drift
+            from app.core.sync.drift_detector import (
+                detect_and_correct_drift,
+                snap_subtitles_to_audio_onset,
+            )
             self.reporter.substage("Checking audio-subtitle drift")
             processed, drift_reports = detect_and_correct_drift(processed, str(audio_path))
             if drift_reports:
                 self.reporter.substage(f"Drift: {len(drift_reports)} samples checked")
+            self.reporter.substage("Snapping subtitles to audio onset")
+            processed, n_snapped = snap_subtitles_to_audio_onset(processed, str(audio_path))
+            if n_snapped:
+                self.reporter.substage(f"Onset snap: {n_snapped} segments adjusted")
 
         processed = self.hitl_mgr.checkpoint_subtitle(processed)
 
