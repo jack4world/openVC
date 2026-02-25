@@ -65,20 +65,26 @@ def translate_subtitle_with_llm(
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": json.dumps(seg_dict, ensure_ascii=False)},
         ]
-        try:
-            response = call_llm(messages=messages, model=model)
-            content = response.choices[0].message.content.strip()
-            result: Dict[str, str] = json_repair.loads(content)
-            if not isinstance(result, dict):
-                raise ValueError(f"Expected dict, got {type(result)}")
-            return {
-                batch_idx * batch_size + int(k): str(v)
-                for k, v in result.items()
-                if k.isdigit()
-            }
-        except Exception as e:
-            logger.warning(f"Batch {batch_idx} translation failed: {e}, using originals")
-            return {batch_idx * batch_size + i: seg.text for i, seg in enumerate(batch)}
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                response = call_llm(messages=messages, model=model)
+                content = response.choices[0].message.content.strip()
+                result: Dict[str, str] = json_repair.loads(content)
+                if not isinstance(result, dict):
+                    raise ValueError(f"Expected dict, got {type(result)}")
+                return {
+                    batch_idx * batch_size + int(k): str(v)
+                    for k, v in result.items()
+                    if k.isdigit()
+                }
+            except Exception as e:
+                logger.warning(
+                    f"Batch {batch_idx} translation failed "
+                    f"(attempt {attempt + 1}/{max_attempts}): {e}"
+                )
+        logger.error(f"Batch {batch_idx} failed all {max_attempts} attempts, skipping")
+        return {}
 
     with ThreadPoolExecutor(max_workers=thread_num) as executor:
         futures = {
@@ -91,13 +97,35 @@ def translate_subtitle_with_llm(
             if callback:
                 callback(int(done / total * 100), f"Translating batch {done}/{total}")
 
+    # Retry any segments that are still missing from the translated dict
+    missing_indices = [i for i in range(len(segments)) if i not in translated]
+    if missing_indices:
+        logger.info(f"Retrying {len(missing_indices)} missing segments individually")
+        retry_dict = {str(local_i): segments[global_i].text
+                      for local_i, global_i in enumerate(missing_indices)}
+        retry_messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": json.dumps(retry_dict, ensure_ascii=False)},
+        ]
+        try:
+            response = call_llm(messages=retry_messages, model=model)
+            content = response.choices[0].message.content.strip()
+            result = json_repair.loads(content)
+            if isinstance(result, dict):
+                for local_k, v in result.items():
+                    if str(local_k).isdigit():
+                        global_idx = missing_indices[int(local_k)]
+                        translated[global_idx] = str(v)
+        except Exception as e:
+            logger.warning(f"Retry of missing segments failed: {e}")
+
     new_segments: List[ASRDataSeg] = []
     for i, seg in enumerate(segments):
         new_segments.append(ASRDataSeg(
             text=seg.text,
             start_time=seg.start_time,
             end_time=seg.end_time,
-            translated_text=translated.get(i, seg.text),
+            translated_text=translated.get(i, ""),
         ))
 
     return ASRData(new_segments)

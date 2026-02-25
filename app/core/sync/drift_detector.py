@@ -20,9 +20,9 @@ class DriftReport:
 def detect_and_correct_drift(
     asr_data: ASRData,
     audio_path: str,
-    drift_threshold_ms: int = 200,
-    max_correction_ms: int = 1000,
-    sample_rate_pct: float = 0.2,
+    drift_threshold_ms: int = 80,
+    max_correction_ms: int = 2000,
+    sample_rate_pct: float = 0.3,
 ) -> Tuple[ASRData, List[DriftReport]]:
     try:
         from pydub import AudioSegment
