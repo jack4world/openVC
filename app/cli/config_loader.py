@@ -61,6 +61,7 @@ class CLIConfig:
     reframe_width: int = 1080
     reframe_height: int = 1920
     reframe_blur: int = 40
+    reframe_style: str = "portrait"  # subtitle style preset for the portrait version
 
     # Paths
     output_dir: Path = field(default_factory=lambda: Path("./output"))
@@ -164,6 +165,8 @@ class CLIConfig:
             cfg.reframe_height = args.reframe_height
         if getattr(args, "reframe_blur", None) is not None:
             cfg.reframe_blur = args.reframe_blur
+        if getattr(args, "reframe_style", None):
+            cfg.reframe_style = args.reframe_style
 
         # Slice-after-process options
         if hasattr(args, "slice") and getattr(args, "slice", False):

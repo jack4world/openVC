@@ -104,6 +104,7 @@ class ProgressReporter:
             ("subtitle", "📄 Subtitle (ASS)   ", ""),
             ("video", "🎬 Video            ", ""),
             ("vertical_video", "📱 Portrait (9:16)  ", ""),
+            ("portrait_subtitle", "📄 Portrait sub     ", ""),
             ("metadata", "📋 Metadata         ", ""),
             ("raw_transcript", "📝 Raw transcript   ", ""),
         ]

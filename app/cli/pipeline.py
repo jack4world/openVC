@@ -232,27 +232,53 @@ class Pipeline:
                 write_sidecar_json(meta_out, source_meta, processed)
                 result_files["metadata"] = str(meta_out.resolve())
 
-        # Optional: reframe captioned video to portrait (TikTok/Reels/Shorts)
-        if self.cfg.reframe_after and "video" in result_files:
+        # Optional: reframe to portrait (TikTok/Reels/Shorts)
+        # Correct order: reframe clean source → generate portrait ASS → burn subtitles
+        # This avoids baking landscape-positioned subtitles into the reframed video.
+        if self.cfg.reframe_after and input_path is not None:
             self.reporter.stage(f"Reframing to portrait ({self.cfg.reframe_mode})")
             from app.core.video.reframe import reframe_video
-            src_video = result_files["video"]
-            portrait_path = str(output_dir / f"[vertical]{stem}.mp4")
+            from app.core.utils.get_subtitle_style import get_subtitle_style
+
+            portrait_clean = str(output_dir / f"[vertical_clean]{stem}.mp4")
+            portrait_path  = str(output_dir / f"[vertical]{stem}.mp4")
             try:
+                # Step 1: reframe the clean (no subtitle) source video
                 reframe_video(
-                    input_path=src_video,
-                    output_path=portrait_path,
+                    input_path=str(input_path),
+                    output_path=portrait_clean,
                     mode=self.cfg.reframe_mode,
                     width=self.cfg.reframe_width,
                     height=self.cfg.reframe_height,
                     blur_strength=self.cfg.reframe_blur,
                     quality=self.cfg.video_quality,
-                    subtitle_file=None,  # subtitles already burned into src_video
                 )
+
+                # Step 2: generate a portrait-optimized ASS subtitle file
+                # Uses the "portrait" style (large MarginV) so subtitles land
+                # in the blurred background area below the letterboxed video.
+                portrait_ass_style = get_subtitle_style(self.cfg.reframe_style)
+                portrait_ass = output_dir / f"[portrait]{stem}.ass"
+                processed.save(str(portrait_ass), ass_style=portrait_ass_style, layout=layout)
+
+                # Step 3: burn the portrait ASS into the reframed video
+                # ffmpeg scales ASS coordinates from PlayRes (1280×720) → portrait canvas
+                from app.core.utils.video_utils import add_subtitles
+                quality_obj = _QUALITY_MAP.get(self.cfg.video_quality, VideoQualityEnum.MEDIUM)
+                add_subtitles(
+                    portrait_clean, str(portrait_ass), portrait_path,
+                    crf=quality_obj.get_crf(),
+                    preset=quality_obj.get_preset(),
+                )
+                Path(portrait_clean).unlink(missing_ok=True)  # remove intermediate
+
                 result_files["vertical_video"] = portrait_path
+                result_files["portrait_subtitle"] = str(portrait_ass.resolve())
                 self.reporter.substage(f"Portrait video → {portrait_path}")
             except Exception as exc:
                 self.reporter.substage(f"Reframe failed: {exc}")
+                if Path(portrait_clean).exists():
+                    Path(portrait_clean).unlink(missing_ok=True)
 
         # Optional: LLM-driven semantic slicing after full processing
         if self.cfg.slice_after and self._has_llm_key():

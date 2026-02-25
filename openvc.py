@@ -225,6 +225,12 @@ def _build_parser():
         "--reframe-blur", type=int, default=40, dest="reframe_blur",
         help="Blur strength for blur-bg/split modes (default: 40)",
     )
+    proc.add_argument(
+        "--reframe-style",
+        default="portrait",
+        dest="reframe_style",
+        help="Subtitle style preset for the portrait video (default: portrait)",
+    )
 
     # ── transcribe ───────────────────────────────────────────────────────────
     tr = subparsers.add_parser("transcribe", help="ASR only")
