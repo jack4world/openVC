@@ -94,6 +94,22 @@ openvc transcribe <video_or_audio> [--output out.srt]
 openvc subtitle <srt_or_ass> [--translate zh] [--video VIDEO]
 ```
 
+### `openvc reframe` — Portrait / TikTok Video / 竖屏视频
+
+```bash
+openvc reframe <video> [options]
+
+Options:
+  --mode MODE         blur-bg (default) / crop-center / split
+                      竖屏模式：模糊背景 / 居中裁剪 / 上下分割
+  --width W           Output width (default: 1080) / 输出宽度
+  --height H          Output height (default: 1920) / 输出高度
+  --blur N            Blur strength (default: 40) / 模糊强度
+  --subtitle FILE     ASS/SRT to burn into portrait video / 字幕文件
+  --style STYLE       Subtitle style preset / 字幕样式
+  --layout LAYOUT     translate-on-top / original-on-top / only-translate
+```
+
 ### `openvc config` — Manage Settings / 配置管理
 
 ```bash
@@ -140,6 +156,39 @@ openvc config get
 - **全局漂移修正**：采样 30% 的段，应用中位偏移量
 - **VAD onset snapping**: per-segment scan to delay subtitles until speech starts
 - **VAD 起始点对齐**：逐段扫描，将字幕推迟到语音实际开始时刻
+
+### 📱 TikTok / Reels / Shorts Portrait Video / 竖屏视频生成
+
+Convert any landscape video to 9:16 portrait format with bilingual subtitles — ready to post on TikTok, Instagram Reels, or YouTube Shorts.
+
+将横屏视频一键转换为 9:16 竖屏格式，含双语字幕，直接发布 TikTok、Reels、Shorts。
+
+```bash
+# Basic reframe (blur-bg mode, TikTok style) / 基础竖屏转换（模糊背景，TikTok 风格）
+openvc reframe video.mp4
+
+# Reframe + burn bilingual subtitles / 竖屏 + 烧录双语字幕
+openvc reframe video.mp4 \
+  --subtitle video_bilingual.ass \
+  --style portrait \
+  --layout translate-on-top
+
+# Integrated: full pipeline → translate → reframe → subtitles in one command
+# 一体化：完整流水线 → 翻译 → 竖屏 → 字幕，一条命令完成
+openvc process video.mp4 --translate zh --reframe
+```
+
+**Reframe modes / 竖屏模式：**
+
+| Mode / 模式 | Description / 说明 |
+|---|---|
+| `blur-bg` (default) | Original video centred on blurred background — TikTok style / 原视频居中 + 模糊背景，TikTok 经典风格 |
+| `crop-center` | Centre-crop to 9:16, no letterbox / 居中裁剪为 9:16，无黑边 |
+| `split` | Original on top, blurred zoom fill on bottom / 原视频在上，模糊放大填充下半部分 |
+
+- Output resolution: **1080 × 1920** (configurable) / 输出分辨率：1080 × 1920（可调）
+- Subtitle position auto-adjusted for portrait canvas / 字幕位置自动适配竖屏画布
+- Works with `--slice` to produce portrait short-clips in one pass / 与 `--slice` 配合，一次生成多个竖屏短片
 
 ### 🎬 Semantic Video Slicing / 语义片段切割
 
