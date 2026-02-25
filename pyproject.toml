@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=70", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openvc"
+version = "0.1.0"
+description = "AI-powered video captioning and translation pipeline"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.32.4",
+    "openai>=1.97.1",
+    "diskcache>=5.6.3",
+    "yt_dlp>=2025.7.21",
+    "json-repair>=0.49.0",
+    "langdetect>=1.0.9",
+    "pydub",
+    "tenacity",
+    "rich",
+]
+
+[project.scripts]
+openvc = "openvc:main"
+
+[tool.setuptools]
+py-modules = ["openvc"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["venv*", "output*", "*.egg-info"]
