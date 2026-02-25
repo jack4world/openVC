@@ -259,7 +259,14 @@ class Pipeline:
                 # in the blurred background area below the letterboxed video.
                 portrait_ass_style = get_subtitle_style(self.cfg.reframe_style)
                 portrait_ass = output_dir / f"{stem}_portrait.ass"
-                processed.save(str(portrait_ass), ass_style=portrait_ass_style, layout=layout)
+                processed.save(
+                    str(portrait_ass),
+                    ass_style=portrait_ass_style,
+                    layout=layout,
+                    play_res_x=self.cfg.reframe_width,
+                    play_res_y=self.cfg.reframe_height,
+                    max_line_chars=13,
+                )
 
                 # Step 3: burn the portrait ASS into the reframed video
                 # ffmpeg scales ASS coordinates from PlayRes (1280×720) → portrait canvas

@@ -434,7 +434,14 @@ def _handle_reframe_command(args, json_output: bool = False) -> int:
         asr_data = ASRData.from_subtitle_file(str(args.subtitle.resolve()))
         tmp = tempfile.NamedTemporaryFile(suffix=".ass", delete=False, prefix="openvc_reframe_")
         tmp.close()
-        asr_data.save(tmp.name, ass_style=ass_style, layout=layout)
+        asr_data.save(
+            tmp.name,
+            ass_style=ass_style,
+            layout=layout,
+            play_res_x=args.width,
+            play_res_y=args.height,
+            max_line_chars=13,
+        )
         subtitle_file = tmp.name
         _temp_ass = tmp.name
 
