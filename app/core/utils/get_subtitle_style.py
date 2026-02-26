@@ -45,10 +45,16 @@ def generate_adaptive_style(
     else:
         primary_size = 40 if is_hd else 28
 
-    margin_v = int(video_height * 0.05)
+    secondary_size = max(primary_size - 10, 18)
+
+    secondary_margin_v = int(video_height * 0.05)
     margin_h = int(video_width * 0.02)
 
     overrides = _get_preset_overrides(style_preset)
+    outline_px = int(overrides.get('outline', '2'))
+    # Primary (Default) MarginV is anchored independently above Secondary:
+    # secondary_margin_v + secondary line height estimate + gap
+    primary_margin_v = secondary_margin_v + secondary_size + outline_px * 2 + 16
 
     style = (
         "[V4+ Styles]\n"
@@ -63,7 +69,13 @@ def generate_adaptive_style(
         f"-1,0,0,0,100,100,0,0,"
         f"{overrides.get('border_style', '1')},"
         f"{overrides.get('outline', '2')},1,2,"
-        f"{margin_h},{margin_h},{margin_v},1\n"
+        f"{margin_h},{margin_h},{primary_margin_v},1\n"
+        f"Style: Secondary,{secondary_font or font},{secondary_size},"
+        f"&H00FFFFFF,&H000000FF,&H00000000,&H00000000,"
+        f"-1,0,0,0,100,100,0,0,"
+        f"{overrides.get('border_style', '1')},"
+        f"{overrides.get('outline', '2')},0,2,"
+        f"{margin_h},{margin_h},{secondary_margin_v},1\n"
     )
     return style
 

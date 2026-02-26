@@ -575,7 +575,10 @@ class SubtitleStyleInterface(QWidget):
 
         # 生成样式字符串
         # BorderStyle: 1=标准轮廓, 3=不透明框（显示背景）
-        main_style = f"Style: Default,{main_font},{main_size},{main_color},&H000000FF,{main_outline_color},{main_back_color_str},-1,0,0,0,100,100,{main_spacing},0,{main_border_style},{main_outline_size},0,2,10,10,{vertical_spacing},1,\\q1"
+        # Default (主字幕) 的 MarginV 独立定位在 Secondary 之上，避免碰撞检测导致位置跳动
+        sub_line_height = int(sub_size * 1.2) + int(sub_outline_size * 2) + 8
+        main_margin_v = vertical_spacing + sub_line_height
+        main_style = f"Style: Default,{main_font},{main_size},{main_color},&H000000FF,{main_outline_color},{main_back_color_str},-1,0,0,0,100,100,{main_spacing},0,{main_border_style},{main_outline_size},0,2,10,10,{main_margin_v},1,\\q1"
         sub_style = f"Style: Secondary,{sub_font},{sub_size},{sub_color},&H000000FF,{sub_outline_color},{sub_back_color_str},-1,0,0,0,100,100,{sub_spacing},0,{sub_border_style},{sub_outline_size},0,2,10,10,{vertical_spacing},1,\\q1"
 
         return f"[V4+ Styles]\n{style_format}\n{main_style}\n{sub_style}"
