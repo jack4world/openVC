@@ -46,7 +46,6 @@ def clear_caches():
     """Clear all disk caches before each test to prevent stale results from
     bypassing mocks (BaseTranslator._safe_translate_chunk, BaseTTS, etc.)."""
     cache.get_translate_cache().clear()
-    cache.get_tts_cache().clear()
     cache.get_llm_cache().clear()
     yield
 

@@ -38,7 +38,6 @@ def is_cache_enabled() -> bool:
 # Predefined cache instances for common use cases
 _llm_cache = Cache(str(CACHE_PATH / "llm_translation"))
 _asr_cache = Cache(str(CACHE_PATH / "asr_results"), tag_index=True)
-_tts_cache = Cache(str(CACHE_PATH / "tts_audio"))
 _translate_cache = Cache(str(CACHE_PATH / "translate_results"))
 _version_state_cache = Cache(str(CACHE_PATH / "version_state"))
 
@@ -57,10 +56,6 @@ def get_translate_cache() -> Cache:
     """Get translate cache instance."""
     return _translate_cache
 
-
-def get_tts_cache() -> Cache:
-    """Get TTS audio cache instance."""
-    return _tts_cache
 
 
 def get_version_state_cache() -> Cache:
