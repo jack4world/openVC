@@ -1,8 +1,8 @@
 """
-Copyright (c) 2024 [VideoCaptioner]
+Copyright (c) 2024 [openVC]
 All rights reserved.
 
-Author: Weifeng
+Author: jack4world
 """
 
 import os
