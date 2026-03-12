@@ -127,7 +127,7 @@ def _build_parser():
         metavar="PATH",
         help="Path to persist cumulative glossary (default: ~/.openvc/glossary.json)",
     )
-    proc.add_argument("--style", default="default", help="Subtitle style preset name")
+    proc.add_argument("--style", default=None, help="Subtitle style preset name")
     proc.add_argument(
         "--layout",
         default="translate-on-top",
