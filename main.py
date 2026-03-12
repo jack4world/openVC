@@ -39,7 +39,7 @@ from app.core.utils.cache import disable_cache, enable_cache  # noqa: E402
 from app.core.utils.logger import setup_logger  # noqa: E402
 from app.view.main_window import MainWindow  # noqa: E402
 
-logger_instance = setup_logger("VideoCaptioner")
+logger_instance = setup_logger("openVC")
 
 
 def exception_hook(exctype, value, tb):
