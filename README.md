@@ -43,6 +43,18 @@ openvc process https://youtube.com/watch?v=... --translate zh
 
 ## Commands / 命令
 
+### Global Flags / 全局选项
+
+These flags go **before** the subcommand / 这些选项放在子命令**之前**:
+
+```bash
+openvc [--no-hitl] [--json-output] [--dry-run] <command> ...
+
+  --no-hitl       Skip all human-in-the-loop checkpoints / 跳过所有人工审核环节
+  --json-output   Output results as JSON (for agent/CI use) / 以 JSON 输出结果
+  --dry-run       Show what would happen without executing / 仅显示执行计划
+```
+
 ### `openvc process` — Full Pipeline / 完整流水线
 
 ```bash
@@ -52,11 +64,9 @@ Options:
   --translate LANG        Translate subtitles (zh, en, ja, ko, ...)
                           翻译字幕（目标语言）
   --output DIR            Output directory (default: ./output)
-  --no-hitl               Skip all human-in-the-loop checkpoints
-                          跳过所有人工审核环节
   --style STYLE           Subtitle style: science-vlog, news, minimal ...
                           字幕样式
-  --layout LAYOUT         translate-on-top / original-on-top / only-translate
+  --layout LAYOUT         translate-on-top / original-on-top / only-original / only-translate
                           字幕布局
   --sync-check            Enable VAD onset snapping for precise timing
                           开启 VAD 语音起始点对齐
@@ -85,13 +95,26 @@ openvc burn <video> --subtitle <ass_file> [--output OUT] [--quality QUALITY]
 ### `openvc transcribe` — Transcribe Only / 仅转录
 
 ```bash
-openvc transcribe <video_or_audio> [--output out.srt]
+openvc transcribe <video_or_audio> [--output FILE] [--format srt|ass|vtt|txt|json]
 ```
 
 ### `openvc subtitle` — Process Existing Subtitle / 处理已有字幕
 
 ```bash
 openvc subtitle <srt_or_ass> [--translate zh] [--video VIDEO]
+```
+
+### `openvc trim` — Clip Video at Subtitle Boundaries / 按字幕边界裁剪视频
+
+```bash
+openvc trim <video> --subtitle <srt_or_ass> --segments START,END [START,END ...]
+```
+
+### `openvc setup` — Interactive Setup Wizard / 交互式配置向导
+
+```bash
+openvc setup                   # Interactive wizard / 交互式向导
+openvc setup --non-interactive # Print current config as JSON (CI/agent) / 打印当前配置
 ```
 
 ### `openvc reframe` — Portrait / TikTok Video / 竖屏视频
@@ -107,7 +130,7 @@ Options:
   --blur N            Blur strength (default: 40) / 模糊强度
   --subtitle FILE     ASS/SRT to burn into portrait video / 字幕文件
   --style STYLE       Subtitle style preset / 字幕样式
-  --layout LAYOUT     translate-on-top / original-on-top / only-translate
+  --layout LAYOUT     translate-on-top / original-on-top / only-original / only-translate
 ```
 
 ### `openvc config` — Manage Settings / 配置管理
@@ -115,8 +138,9 @@ Options:
 ```bash
 openvc config set api_key sk-...
 openvc config set llm_model deepseek-chat
-openvc config set style science-vlog
-openvc config get
+openvc config set subtitle_style science-vlog
+openvc config get <key>
+openvc config list
 ```
 
 ---
@@ -216,14 +240,14 @@ All settings persist in `~/.openvc/config.json`.
 所有配置持久化保存在 `~/.openvc/config.json`。
 
 ```bash
-openvc config set api_key       <key>          # LLM API key
-openvc config set base_url      <url>          # API endpoint (OpenAI-compatible)
-openvc config set llm_model     deepseek-chat  # Model name
-openvc config set style         science-vlog   # Default subtitle style
-openvc config set layout        translate-on-top
-openvc config set sync_check    true           # Always snap subtitles to audio
-openvc config set thread_num    8              # Parallel workers
-openvc config set batch_size    10             # LLM batch size
+openvc config set api_key          <key>          # LLM API key
+openvc config set base_url         <url>          # API endpoint (OpenAI-compatible)
+openvc config set llm_model        deepseek-chat  # Model name
+openvc config set subtitle_style   science-vlog   # Default subtitle style
+openvc config set subtitle_layout  translate-on-top
+openvc config set sync_check       true           # Always snap subtitles to audio
+openvc config set thread_num       8              # Parallel workers
+openvc config set batch_size       10             # LLM batch size
 ```
 
 ### Recommended LLM Providers / 推荐 LLM 服务
