@@ -184,6 +184,8 @@ class Pipeline:
         self.reporter.stage("Processing subtitles")
         processed = self._process_subtitles(asr_data)
 
+        if self.cfg.sync_check and audio_path is None:
+            self.reporter.substage("Skipping sync-check (no audio extracted — transcript came from yt-dlp)")
         if self.cfg.sync_check and audio_path is not None:
             from app.core.sync.drift_detector import (
                 detect_and_correct_drift,
@@ -218,7 +220,7 @@ class Pipeline:
             "raw_transcript": str(raw_srt.resolve()),
         }
 
-        if not getattr(args, "no_video", False):
+        if not no_video:
             self.reporter.stage("Synthesizing video")
             from app.core.utils.video_utils import add_subtitles
             output_video = output_dir / f"[captioned]{stem}.mp4"
@@ -351,9 +353,11 @@ class Pipeline:
 
         from app.core.utils.video_utils import video2audio
         audio_extensions = {".mp3", ".wav", ".flac", ".aac", ".m4a", ".ogg", ".opus"}
+        temp_audio: Optional[Path] = None
         if input_path.suffix.lower() not in audio_extensions:
             audio_path = input_path.with_suffix(".mp3")
             video2audio(str(input_path), str(audio_path))
+            temp_audio = audio_path
         else:
             audio_path = input_path
 
@@ -366,6 +370,8 @@ class Pipeline:
             output = input_path.with_suffix(f".{fmt}")
 
         asr_data.save(str(output))
+        if temp_audio is not None:
+            temp_audio.unlink(missing_ok=True)
         self.reporter.done("Transcription complete")
         return {"output": str(output.resolve()), "segments": len(asr_data.segments)}
 
@@ -383,9 +389,10 @@ class Pipeline:
         if output is None:
             output = input_path.with_stem(f"[processed]{input_path.stem}")
 
+        style_name = getattr(args, "style", None) or self.cfg.subtitle_style
         layout = _LAYOUT_MAP.get(self.cfg.subtitle_layout, SubtitleLayoutEnum.TRANSLATE_ON_TOP)
         from app.core.utils.get_subtitle_style import get_subtitle_style
-        ass_style = get_subtitle_style(self.cfg.subtitle_style)
+        ass_style = get_subtitle_style(style_name)
         processed.save(str(output), ass_style=ass_style, layout=layout)
 
         result_files: Dict[str, Any] = {"subtitle": str(output.resolve())}
@@ -452,6 +459,10 @@ class Pipeline:
 
     def _run_slice(self, args: Any) -> Dict[str, Any]:
         self._set_llm_env()
+
+        if not self._has_llm_key():
+            self.reporter.substage("No LLM API key — set OPENAI_API_KEY or run 'openvc config set api_key <key>'")
+            return {"clips": [], "subtitles": []}
 
         video_path = Path(str(args.video))
         subtitle_path = Path(str(args.subtitle))
@@ -697,9 +708,12 @@ class Pipeline:
         except ImportError:
             return None
 
-        # Include regional variants (e.g. "en" → also tries "en-US", "en-GB", "en-IN", etc.)
+        # Include regional variants (e.g. "en" → also tries "en-orig")
         base_lang = language.split("-")[0]
-        lang_variants = [language, f"{language}-orig", base_lang]
+        seen: Dict[str, None] = {}
+        for v in [language, f"{base_lang}-orig", base_lang]:
+            seen[v] = None
+        lang_variants = list(seen)
 
         ydl_opts: Dict[str, Any] = {
             "skip_download": True,

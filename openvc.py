@@ -254,6 +254,7 @@ def _build_parser():
     sub.add_argument("--api-key", default=None, help="LLM API key (or set OPENAI_API_KEY env)")
     sub.add_argument("--threads", type=int, metavar="N", help="Parallel worker threads")
     sub.add_argument("--batch-size", type=int, metavar="N", help="LLM batch size")
+    sub.add_argument("--style", default=None, help="Subtitle style preset name")
     sub.add_argument(
         "--layout",
         default="translate-on-top",
