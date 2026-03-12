@@ -4,54 +4,9 @@ import json
 from typing import List, Tuple
 
 import json_repair
-from openai import OpenAI
 
 from app.core.asr.asr_data import ASRData
 
-
-def analyze_slices(asr_data: ASRData, model: str) -> List[Tuple[int, int]]:
-    """Analyze subtitle content to determine video slice points.
-
-    Args:
-        asr_data: ASR data with subtitle segments
-        model: LLM model name
-
-    Returns:
-        List of segment indices where slices should occur
-    """
-    if not asr_data.segments:
-        return []
-
-    # Build subtitle text with indices
-    subtitle_text = "\n".join(
-        f"{i}: {seg.text}" for i, seg in enumerate(asr_data.segments)
-    )
-
-    prompt = f"""Analyze the following subtitles and extract 5-8 segments related to: science, future, AI, space, humanity, technology. Each segment should contain in-depth discussion on these topics - NOT casual conversation.
-
-Subtitles:
-{subtitle_text}
-
-Return ONLY a JSON array of [start, end] pairs for 5-8 segments about science/future/AI/space/humanity/technology. Example: [[0, 15], [28, 45], [60, 80]]"""
-
-    try:
-        from app.common.config import cfg as _cfg
-        client = OpenAI(
-            base_url=_cfg.deepseek_api_base.value, api_key=_cfg.deepseek_api_key.value
-        )
-    except Exception:
-        client = None
-
-    if client is None:
-        raise RuntimeError("analyze_slices requires GUI config. Use analyze_slices_cli() for CLI use.")
-
-    response = client.chat.completions.create(
-        model=model, messages=[{"role": "user", "content": prompt}], temperature=0.3
-    )
-    content = response.choices[0].message.content.strip()
-
-    ranges = json_repair.loads(_strip_code_fence(content))
-    return _validate_ranges(ranges, len(asr_data.segments))
 
 
 def analyze_slices_cli(

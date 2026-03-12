@@ -1,8 +1,6 @@
 requests>=2.32.4
 openai>=1.97.1
 diskcache>=5.6.3
-PyQt5==5.15.11
-PyQt-Fluent-Widgets==1.8.4
 yt_dlp>=2025.7.21
 modelscope>=1.28.1
 psutil>=7.0.0
