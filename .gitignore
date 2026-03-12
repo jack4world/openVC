@@ -3,6 +3,7 @@
 !/resource/bin/bin_environment.txt
 
 # 开发环境
+*.egg-info/
 .idea/
 *.pyc
 */__pycache__/
