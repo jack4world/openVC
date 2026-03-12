@@ -87,7 +87,7 @@ class MainWindow(FluentWindow):
         if interface.windowTitle():
             self.setWindowTitle(interface.windowTitle())
         else:
-            self.setWindowTitle(self.tr("卡卡字幕助手 -- VideoCaptioner"))
+            self.setWindowTitle(self.tr("openVC"))
         self.stackedWidget.setCurrentWidget(interface, popOut=False)
 
     def initWindow(self):
@@ -95,7 +95,7 @@ class MainWindow(FluentWindow):
         self.resize(1050, 800)
         self.setMinimumWidth(700)
         self.setWindowIcon(QIcon(str(LOGO_PATH)))
-        self.setWindowTitle(self.tr("卡卡字幕助手 -- VideoCaptioner"))
+        self.setWindowTitle(self.tr("openVC"))
 
         self.setMicaEffectEnabled(cfg.get(cfg.micaEnabled))
 
