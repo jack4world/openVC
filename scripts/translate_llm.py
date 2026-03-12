@@ -9,9 +9,9 @@ Usage:
     python scripts/translate_llm.py <file>
 
 Examples:
-    python scripts/translate_llm.py resource/translations/VideoCaptioner_en_US.ts
-    python scripts/translate_llm.py resource/translations/VideoCaptioner_zh_HK.ts
-    python scripts/translate_llm.py resource/translations/VideoCaptioner_ja_JP.ts
+    python scripts/translate_llm.py resource/translations/openVC_en_US.ts
+    python scripts/translate_llm.py resource/translations/openVC_zh_HK.ts
+    python scripts/translate_llm.py resource/translations/openVC_ja_JP.ts
 """
 import os
 import re
@@ -110,13 +110,13 @@ client = OpenAI(
 
 def detect_target_language(filename: str) -> str:
     """Detect target language from filename"""
-    # Extract locale code (e.g., "en_US" from "VideoCaptioner_en_US.ts")
+    # Extract locale code (e.g., "en_US" from "openVC_en_US.ts")
     match = re.search(r"_([a-z]{2}_[A-Z]{2})\.ts$", filename)
 
     if not match:
         raise ValueError(
             f"Cannot detect language from filename: {filename}\n"
-            f"Expected format: VideoCaptioner_<locale>.ts (e.g., VideoCaptioner_en_US.ts)"
+            f"Expected format: openVC_<locale>.ts (e.g., openVC_en_US.ts)"
         )
 
     locale = match.group(1)

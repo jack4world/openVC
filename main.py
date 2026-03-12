@@ -74,7 +74,7 @@ app.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings, True)  # type: ignore
 locale = cfg.get(cfg.language).value
 translator = FluentTranslator(locale)
 myTranslator = QTranslator()
-translations_path = TRANSLATIONS_PATH / f"VideoCaptioner_{locale.name()}.qm"
+translations_path = TRANSLATIONS_PATH / f"openVC_{locale.name()}.qm"
 myTranslator.load(str(translations_path))
 app.installTranslator(translator)
 app.installTranslator(myTranslator)
