@@ -242,8 +242,8 @@ openvc config set batch_size    10             # LLM batch size
 # Requirements: Python 3.10+, ffmpeg
 # 依赖：Python 3.10+，ffmpeg
 
-git clone https://github.com/jack4world/AIRisk-VideoCaptioner.git
-cd AIRisk-VideoCaptioner
+git clone https://github.com/jack4world/openVC.git
+cd openVC
 
 python -m venv venv
 source venv/bin/activate      # Windows: venv\Scripts\activate

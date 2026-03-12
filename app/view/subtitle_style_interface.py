@@ -675,9 +675,6 @@ class SubtitleStyleInterface(QWidget):
                 self.mainFontCard.setCurrentText(parts[1])
                 self.mainSizeCard.spinBox.setValue(int(parts[2]))
 
-                vertical_spacing = int(parts[21])
-                self.verticalSpacingCard.spinBox.setValue(vertical_spacing)
-
                 # 将 &HAARRGGBB 格式转换为 QColor
                 primary_color = parts[3].strip()
                 if primary_color.startswith("&H"):
@@ -733,7 +730,9 @@ class SubtitleStyleInterface(QWidget):
                 self.mainOutlineSizeCard.spinBox.setValue(float(parts[16]))
             elif line.startswith("Style: Secondary"):
                 # 解析副字幕样式
+                # Secondary.MarginV holds the raw vertical_spacing value
                 parts = line.split(",")
+                self.verticalSpacingCard.spinBox.setValue(int(parts[21]))
                 self.subFontCard.setCurrentText(parts[1])
                 self.subSizeCard.spinBox.setValue(int(parts[2]))
                 # 将 &HAARRGGBB 格式转换为 QColor
