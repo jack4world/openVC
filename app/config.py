@@ -4,8 +4,8 @@ from pathlib import Path
 
 VERSION = "v1.4.0"
 YEAR = 2025
-APP_NAME = "VideoCaptioner"
-AUTHOR = "Weifeng"
+APP_NAME = "openVC"
+AUTHOR = "jack4world"
 
 HELP_URL = "https://github.com/jack4world/openVC"
 GITHUB_REPO_URL = "https://github.com/jack4world/openVC"
