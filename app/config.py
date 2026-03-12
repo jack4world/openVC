@@ -7,10 +7,10 @@ YEAR = 2025
 APP_NAME = "VideoCaptioner"
 AUTHOR = "Weifeng"
 
-HELP_URL = "https://github.com/WEIFENG2333/VideoCaptioner"
-GITHUB_REPO_URL = "https://github.com/WEIFENG2333/VideoCaptioner"
-RELEASE_URL = "https://github.com/WEIFENG2333/VideoCaptioner/releases/latest"
-FEEDBACK_URL = "https://github.com/WEIFENG2333/VideoCaptioner/issues"
+HELP_URL = "https://github.com/jack4world/openVC"
+GITHUB_REPO_URL = "https://github.com/jack4world/openVC"
+RELEASE_URL = "https://github.com/jack4world/openVC/releases/latest"
+FEEDBACK_URL = "https://github.com/jack4world/openVC/issues"
 
 # 路径
 ROOT_PATH = Path(__file__).parent.parent

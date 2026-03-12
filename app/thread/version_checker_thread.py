@@ -43,7 +43,7 @@ class VersionChecker(QObject):
             #     "latest_version": "v1.4.0",
             #     "update_required": True,
             #     "update_info": "更新内容",
-            #     "download_url": "https://github.com/WEIFENG2333/VideoCaptioner/releases/latest",
+            #     "download_url": "https://github.com/jack4world/openVC/releases/latest",
             #     "announcement": {
             #         "enabled": True,
             #         "content": "公告内容211",
