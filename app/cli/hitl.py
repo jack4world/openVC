@@ -12,8 +12,20 @@ from app.cli.output import ProgressReporter
 STYLE_PRESETS: Dict[str, str] = {
     "default": """\
 ┌─────────────────────────────┐
-│  White text, thin outline   │
-│  经典白色字幕，细描边        │
+│  Green primary, dark outline│
+│  绿色主字幕，深色描边        │
+└─────────────────────────────┘""",
+
+    "science-vlog": """\
+┌─────────────────────────────┐
+│  Light gray, dark outline   │
+│  浅灰主字幕，深色细描边      │
+└─────────────────────────────┘""",
+
+    "anime-cute": """\
+┌─────────────────────────────┐
+│  Blue outline, spaced text  │
+│  蓝色描边，字符间距宽松      │
 └─────────────────────────────┘""",
 
     "highlight-bg": """\
@@ -22,28 +34,10 @@ STYLE_PRESETS: Dict[str, str] = {
 │ ██  半透明背景高亮字幕  ██  │
 └─────────────────────────────┘""",
 
-    "minimal": """\
+    "portrait": """\
 ┌─────────────────────────────┐
-│  No outline, clean look     │
-│  极简无描边样式              │
-└─────────────────────────────┘""",
-
-    "terminal-dark": """\
-┌─────────────────────────────┐
-│  Green on dark bg (#00FF41) │
-│  终端绿色，深色背景          │
-└─────────────────────────────┘""",
-
-    "documentary": """\
-┌─────────────────────────────┐
-│  Centered, serif, shadow    │
-│  纪录片风格，居中衬线字体    │
-└─────────────────────────────┘""",
-
-    "social-media": """\
-┌─────────────────────────────┐
-│  Bold, yellow, top-aligned  │
-│  社交媒体风格，顶部粗体黄字  │
+│  9:16 portrait (TikTok)     │
+│  竖屏专用，字幕在底部区域    │
 └─────────────────────────────┘""",
 }
 
@@ -134,9 +128,11 @@ class HITLManager:
                                              encoding="utf-8") as f:
                 f.write(asr_data.to_srt())
                 tmp_srt = f.name
-            edited_path = self._edit_file(Path(tmp_srt))
-            edited_data = ASRData.from_subtitle_file(str(edited_path))
-            Path(tmp_srt).unlink(missing_ok=True)
+            try:
+                edited_path = self._edit_file(Path(tmp_srt))
+                edited_data = ASRData.from_subtitle_file(str(edited_path))
+            finally:
+                Path(tmp_srt).unlink(missing_ok=True)
             return edited_data
         return asr_data
 
@@ -183,7 +179,7 @@ class HITLManager:
         self._show_style_menu(current_style)
 
         print(f"  Current: [{current_style}]")
-        print("  Tip: run `openvc config set style <name>` to skip this in future.")
+        print("  Tip: run `openvc config set subtitle_style <name>` to skip this in future.")
         print("  Enter style name or press Enter to keep current: ", end="", flush=True)
         try:
             choice = input().strip().lower()
